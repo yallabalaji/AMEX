@@ -1,0 +1,23 @@
+# Core libraries
+pandas
+numpy
+dask[complete]
+humanize
+
+# Machine learning
+scikit-learn
+lightgbm
+xgboost
+
+# Visualization
+matplotlib
+seaborn
+
+# Utilities
+tqdm
+requests
+python-dotenv
+keyring
+kaggle
+jupyter
+ipykernel

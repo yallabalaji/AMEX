@@ -1,0 +1,9 @@
+{
+  "roc_auc": 0.9305056142681148,
+  "n_train_rows": 4424369,
+  "n_val_rows": 1107082,
+  "n_features": 220,
+  "test_size": 0.2,
+  "random_state": 42,
+  "model_type": "logistic_regression_saga"
+}

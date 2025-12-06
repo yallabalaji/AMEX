@@ -60,3 +60,14 @@ kaggle.json
 
 # ----- Misc project files -----
 structure.txt
+
+# ----- Submission artifacts -----
+submission/
+backup/
+!submission/.gitkeep
+!backup/.gitkeep
+# ----- Stage artifacts (JSON maps, processed data) -----
+data/stage/
+!data/stage/.gitkeep
+# ----- Learnings backup files -----
+learnings/*.resolved

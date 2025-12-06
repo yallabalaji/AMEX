@@ -80,6 +80,11 @@ CARDINALITY_MAP: Dict[str, int] = {
 
 CATEGORICAL_COLS: List[str] = list(CARDINALITY_MAP.keys())
 
+# Extra categoricals used for linear models (string-based)
+LINEAR_EXTRA_CATEGORICAL_COLS: List[str] = ["D_63", "D_64"]
+
+# All categorical columns that should be one-hot encoded for linear models
+LINEAR_CATEGORICAL_COLS: List[str] = CATEGORICAL_COLS + LINEAR_EXTRA_CATEGORICAL_COLS
 
 # =============================================================================
 # UTILITY FUNCTIONS
@@ -278,28 +283,59 @@ def preprocess_and_save_parquet(input_csv: str, output_prefix: str, chunksize: i
 def build_category_map(parquet_paths: List[str], output_path: str = "category_map.json") -> Dict[str, List[Any]]:
     """
     Scans Parquet files to identify all unique categories for categorical columns.
-    Ensures consistency across training and inference.
-
-    Args:
-        parquet_paths: List of Parquet file paths to scan.
-        output_path: Path to save the JSON map.
-
-    Returns:
-        Dictionary mapping column names to sorted lists of categories.
+    Defensive: tolerates parquet parts missing some columns, and converts numpy/pandas
+    scalars to native Python types so JSON serialization won't fail.
     """
-    full_categories = {col: set() for col in CATEGORICAL_COLS}
+    def _to_python_scalar(x):
+        # Convert numpy / pandas scalars to native Python types; handle timestamps.
+        try:
+            if pd.isna(x):
+                return None
+        except Exception:
+            pass
+
+        # pandas Timestamp -> ISO string
+        if isinstance(x, pd.Timestamp):
+            return x.isoformat()
+
+        # numpy / pandas scalar -> Python native
+        if isinstance(x, (np.generic, )):
+            try:
+                return x.item()
+            except Exception:
+                return float(x)
+
+        # plain python (int, float, str, bool)
+        if isinstance(x, (int, float, str, bool)):
+            return x
+
+        # Fallback: convert to string
+        return str(x)
+
+    full_categories = {col: set() for col in LINEAR_CATEGORICAL_COLS}
 
     for path in parquet_paths:
-        # Read only categorical columns for speed
-        df = pd.read_parquet(path, columns=[c for c in CATEGORICAL_COLS])
-        for col in CATEGORICAL_COLS:
-            if col in df.columns:
-                uniques = df[col].dropna().unique()
-                full_categories[col].update(uniques)
+        try:
+            # Fast path: read only expected categorical columns
+            df = pd.read_parquet(path, columns=[c for c in LINEAR_CATEGORICAL_COLS])
+        except Exception:
+            # Fallback: read whole file
+            df = pd.read_parquet(path)
 
-    json_ready_map = {
-        col: sorted(list(vals)) for col, vals in full_categories.items()
-    }
+        present_cat_cols = [c for c in LINEAR_CATEGORICAL_COLS if c in df.columns]
+        for col in present_cat_cols:
+            # dropna() then iterate unique values
+            uniques = df[col].dropna().unique()
+            for u in uniques:
+                py = _to_python_scalar(u)
+                if py is not None:
+                    full_categories[col].add(py)
+
+    # Convert sets to sorted lists (deterministic). Use string sort key to avoid mixed-type compare issues.
+    json_ready_map = {col: sorted(list(vals), key=lambda v: str(v)) for col, vals in full_categories.items()}
+
+    # Optionally remove columns with empty category lists (if you want)
+    # json_ready_map = {k: v for k, v in json_ready_map.items() if v}
 
     with open(output_path, 'w') as f:
         json.dump(json_ready_map, f)
@@ -309,16 +345,6 @@ def build_category_map(parquet_paths: List[str], output_path: str = "category_ma
 
 
 def load_and_prepare_for_linear(parquet_paths: List[str], category_map_path: str = "category_map.json") -> pd.DataFrame:
-    """
-    Loads data for linear models, enforcing consistent categorical encoding.
-
-    Args:
-        parquet_paths: List of Parquet files to load.
-        category_map_path: Path to the category map JSON.
-
-    Returns:
-        Concatenated DataFrame with One-Hot Encoding applied.
-    """
     with open(category_map_path, 'r') as f:
         category_map = json.load(f)
 
@@ -326,14 +352,14 @@ def load_and_prepare_for_linear(parquet_paths: List[str], category_map_path: str
     for path in parquet_paths:
         df = pd.read_parquet(path)
 
-        # Enforce categories for all categorical columns
+        # Enforce categories for all categorical columns that will be one-hot encoded
         for col, categories in category_map.items():
             if col in df.columns:
                 cat_type = pd.CategoricalDtype(categories=categories, ordered=False)
                 df[col] = df[col].astype(cat_type)
 
-        # One-Hot Encoding
-        cat_cols = [col for col in CATEGORICAL_COLS if col in df.columns]
+        # One-Hot Encoding for all linear categoricals (numeric + string)
+        cat_cols = [col for col in LINEAR_CATEGORICAL_COLS if col in df.columns]
         if cat_cols:
             df = pd.get_dummies(df, columns=cat_cols, drop_first=True)
 

@@ -2,7 +2,7 @@ pipeline {
     agent any
     
     environment {
-        PYTHON_VERSION = '3.14'
+        PYTHON_VERSION = '3.11'
         VENV_PATH = "${WORKSPACE}/venv"
         DATA_DIR = "${WORKSPACE}/data"
         MODELS_DIR = "${WORKSPACE}/models"

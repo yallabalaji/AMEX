@@ -10,6 +10,11 @@ pipeline {
     }
     
     parameters {
+        booleanParam(
+            name: 'USE_CUSTOM_WORKSPACE',
+            defaultValue: true,
+            description: 'Use custom workspace (local dev) to avoid data duplication. Uncheck for GCP/default workspace.'
+        )
         choice(
             name: 'PIPELINE_STAGE',
             choices: ['full', 'preprocess', 'aggregate', 'train', 'predict'],
@@ -33,6 +38,28 @@ pipeline {
     }
     
     stages {
+        stage('Setup Workspace') {
+            steps {
+                script {
+                    if (params.USE_CUSTOM_WORKSPACE) {
+                        echo "Using custom workspace: /Users/balaji/Projects/AMEX/AMEX"
+                        // Create symlink to avoid data duplication
+                        sh """
+                            if [ ! -L "${WORKSPACE}/data" ] && [ ! -d "${WORKSPACE}/data" ]; then
+                                ln -s /Users/balaji/Projects/AMEX/AMEX/data ${WORKSPACE}/data
+                                echo "✓ Created symlink to data directory"
+                            else
+                                echo "✓ Data directory already exists"
+                            fi
+                        """
+                    } else {
+                        echo "Using default Jenkins workspace: ${WORKSPACE}"
+                        echo "Note: You'll need to upload data separately for GCP"
+                    }
+                }
+            }
+        }
+        
         stage('Setup Environment') {
             steps {
                 script {

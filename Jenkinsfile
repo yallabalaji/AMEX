@@ -219,7 +219,7 @@ else:
         
         stage('Validate Submission') {
             when {
-                expression { params.PIPELINE_STAGE in ['full', 'predict'] }
+                expression { params.PIPELINE_STAGE in ['full', 'predict', 'train'] }
             }
             steps {
                 script {
@@ -228,6 +228,21 @@ else:
                         . ${VENV_PATH}/bin/activate
                         python scripts/validate_submission.py \
                             --submission ${DATA_DIR}/submissions/submission.csv
+                    """
+                }
+            }
+        }
+        
+        stage('Validate Features') {
+            when {
+                expression { params.PIPELINE_STAGE in ['full', 'aggregate'] }
+            }
+            steps {
+                script {
+                    echo "Validating train/test feature consistency..."
+                    sh """
+                        . ${VENV_PATH}/bin/activate
+                        python scripts/validate_features.py
                     """
                 }
             }
@@ -247,7 +262,32 @@ else:
                         
                         python scripts/submit_kaggle.py \
                             --file ${DATA_DIR}/submissions/submission.csv \
-                            --msg "Jenkins build #${BUILD_NUMBER} - ${params.MODEL_TYPE}"
+                            --msg "Jenkins build #${BUILD_NUMBER} - ${params.MODEL_TYPE} - ${params.PIPELINE_STAGE}"
+                    """
+                }
+            }
+        }
+        
+        stage('Display Results') {
+            when {
+                expression { params.PIPELINE_STAGE in ['full', 'train'] }
+            }
+            steps {
+                script {
+                    echo "=== Build Summary ==="
+                    sh """
+                        . ${VENV_PATH}/bin/activate
+                        echo "Model: ${params.MODEL_TYPE}"
+                        echo "Pipeline Stage: ${params.PIPELINE_STAGE}"
+                        echo ""
+                        echo "Generated Files:"
+                        ls -lh ${MODELS_DIR}/*.txt 2>/dev/null || echo "  No models found"
+                        ls -lh ${DATA_DIR}/submissions/*.csv 2>/dev/null || echo "  No submissions found"
+                        echo ""
+                        if [ -f "${DATA_DIR}/submissions/submission.csv" ]; then
+                            echo "Submission Preview:"
+                            head -5 ${DATA_DIR}/submissions/submission.csv
+                        fi
                     """
                 }
             }

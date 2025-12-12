@@ -38,7 +38,7 @@ pipeline {
                 script {
                     echo "Setting up Python virtual environment..."
                     sh """
-                        python${PYTHON_VERSION} -m venv ${VENV_PATH}
+                        python3 -m venv ${VENV_PATH}
                         . ${VENV_PATH}/bin/activate
                         pip install --upgrade pip
                         pip install -r requirements.txt

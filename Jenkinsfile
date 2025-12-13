@@ -100,7 +100,10 @@ for f in required_files:
         
         stage('Preprocess Training Data') {
             when {
-                expression { params.PIPELINE_STAGE in ['full', 'preprocess'] }
+                expression { 
+                    params.PIPELINE_STAGE in ['full', 'preprocess'] &&
+                    !fileExists("${DATA_DIR}/stage/linear_train.parquet")
+                }
             }
             steps {
                 script {
@@ -115,7 +118,10 @@ for f in required_files:
         
         stage('Preprocess Test Data') {
             when {
-                expression { params.PIPELINE_STAGE in ['full', 'preprocess'] }
+                expression { 
+                    params.PIPELINE_STAGE in ['full', 'preprocess'] &&
+                    !fileExists("${DATA_DIR}/stage/linear_test.parquet")
+                }
             }
             steps {
                 script {
@@ -130,7 +136,10 @@ for f in required_files:
         
         stage('Aggregate Features - Train') {
             when {
-                expression { params.PIPELINE_STAGE in ['full', 'aggregate'] }
+                expression { 
+                    params.PIPELINE_STAGE in ['full', 'aggregate'] &&
+                    !fileExists("${DATA_DIR}/stage/aggregated/customer_level_train.parquet")
+                }
             }
             steps {
                 script {
@@ -145,7 +154,10 @@ for f in required_files:
         
         stage('Aggregate Features - Test') {
             when {
-                expression { params.PIPELINE_STAGE in ['full', 'aggregate'] }
+                expression { 
+                    params.PIPELINE_STAGE in ['full', 'aggregate'] &&
+                    !fileExists("${DATA_DIR}/stage/aggregated/customer_level_test.parquet")
+                }
             }
             steps {
                 script {

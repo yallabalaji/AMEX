@@ -25,10 +25,10 @@ pipeline {
             defaultValue: '100000',
             description: 'Chunk size for preprocessing'
         )
-        string(
+        choice(
             name: 'MODEL_TYPE',
-            defaultValue: 'lightgbm',
-            description: 'Model type: lightgbm, xgboost, catboost'
+            choices: ['lightgbm', 'xgboost', 'catboost'],
+            description: 'Model type to train'
         )
         booleanParam(
             name: 'SUBMIT_TO_KAGGLE',

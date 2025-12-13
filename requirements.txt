@@ -8,6 +8,7 @@ humanize
 scikit-learn
 lightgbm
 xgboost
+catboost
 
 # Visualization
 matplotlib

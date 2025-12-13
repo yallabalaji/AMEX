@@ -1,6 +1,14 @@
 pipeline {
     agent any
     
+    options {
+        buildDiscarder(logRotator(numToKeepStr: '10'))
+        timestamps()
+        timeout(time: 3, unit: 'HOURS')
+    }
+    
+    description 'AMEX ML Pipeline: Train models (LightGBM/XGBoost/CatBoost/HistGB) and submit to Kaggle'
+    
     environment {
         PYTHON_VERSION = '3.14'
         VENV_PATH = "${WORKSPACE}/venv"

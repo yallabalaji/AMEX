@@ -27,7 +27,7 @@ pipeline {
         )
         choice(
             name: 'MODEL_TYPE',
-            choices: ['lightgbm', 'xgboost', 'catboost'],
+            choices: ['lightgbm', 'xgboost', 'catboost', 'histgb'],
             description: 'Model type to train'
         )
         booleanParam(

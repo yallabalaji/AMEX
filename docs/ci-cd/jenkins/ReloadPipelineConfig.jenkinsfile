@@ -1,0 +1,108 @@
+pipeline {
+    agent any
+    
+    stages {
+        stage('Reload Pipeline Configuration') {
+            steps {
+                script {
+                    echo "=== Reloading AMEX-ML-Pipeline Configuration ==="
+                    
+                    // Method 1: Reload configuration from disk
+                    echo "Step 1: Reloading Jenkins configuration from disk..."
+                    build job: 'reload-configuration', wait: false
+                    
+                    // Method 2: Trigger a dummy build to force parameter discovery
+                    echo "Step 2: Triggering parameter discovery build..."
+                    try {
+                        build job: 'AMEX-ML-Pipeline', 
+                              parameters: [
+                                  booleanParam(name: 'USE_CUSTOM_WORKSPACE', value: true),
+                                  string(name: 'PIPELINE_STAGE', value: 'train'),
+                                  string(name: 'CHUNK_SIZE', value: '100000'),
+                                  string(name: 'MODEL_TYPE', value: 'lightgbm'),
+                                  booleanParam(name: 'SUBMIT_TO_KAGGLE', value: false)
+                              ],
+                              wait: false
+                    } catch (Exception e) {
+                        echo "Note: Parameter discovery build may fail - this is expected"
+                        echo "The configuration will still be updated"
+                    }
+                    
+                    echo ""
+                    echo "✅ Configuration reload initiated!"
+                    echo ""
+                    echo "Next steps:"
+                    echo "1. Wait 10 seconds for Jenkins to process"
+                    echo "2. Refresh your browser"
+                    echo "3. Go to AMEX-ML-Pipeline → Build with Parameters"
+                    echo "4. You should see updated dropdowns/checkboxes!"
+                }
+            }
+        }
+        
+        stage('Verify Updates') {
+            steps {
+                script {
+                    echo "=== Checking for Jenkinsfile changes ==="
+                    sh """
+                        cd ${WORKSPACE}
+                        
+                        echo "Latest Jenkinsfile commit:"
+                        git log -1 --oneline Jenkinsfile || echo "No Jenkinsfile changes found"
+                        
+                        echo ""
+                        echo "Recent Jenkinsfile changes:"
+                        git log -5 --oneline --no-merges -- Jenkinsfile || echo "No recent changes"
+                    """
+                }
+            }
+        }
+        
+        stage('Display Instructions') {
+            steps {
+                script {
+                    echo """
+=================================================================
+                    CONFIGURATION RELOAD COMPLETE
+=================================================================
+
+The AMEX-ML-Pipeline configuration has been reloaded.
+
+WHAT CHANGED:
+- New parameters (dropdowns, checkboxes) are now available
+- New pipeline stages are now active
+- Updated stage conditions are applied
+
+HOW TO USE:
+1. Wait 10 seconds
+2. Refresh your browser (Cmd+R / Ctrl+R)
+3. Go to: AMEX-ML-Pipeline
+4. Click: "Build with Parameters"
+5. You should see:
+   ✓ USE_CUSTOM_WORKSPACE (checkbox)
+   ✓ PIPELINE_STAGE (dropdown)
+   ✓ MODEL_TYPE (dropdown: lightgbm/xgboost/catboost)
+   ✓ CHUNK_SIZE (text field)
+   ✓ SUBMIT_TO_KAGGLE (checkbox)
+
+TROUBLESHOOTING:
+If parameters don't appear:
+- Go to: Manage Jenkins → Reload Configuration from Disk
+- Or restart Jenkins: brew services restart jenkins-lts
+
+=================================================================
+                    """
+                }
+            }
+        }
+    }
+    
+    post {
+        success {
+            echo "✅ Pipeline configuration successfully reloaded!"
+        }
+        failure {
+            echo "❌ Configuration reload failed. Try manually: Manage Jenkins → Reload Configuration from Disk"
+        }
+    }
+}

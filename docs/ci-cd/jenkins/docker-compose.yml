@@ -1,0 +1,46 @@
+version: '3.8'
+
+services:
+  jenkins:
+    image: jenkins/jenkins:lts
+    container_name: amex-jenkins
+    privileged: true
+    user: root
+    ports:
+      - "8080:8080"
+      - "50000:50000"
+    volumes:
+      - jenkins_home:/var/jenkins_home
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./workspace:/workspace
+    environment:
+      - JAVA_OPTS=-Xmx4g -Xms2g
+      - JENKINS_OPTS=--prefix=/jenkins
+    restart: unless-stopped
+    networks:
+      - jenkins-network
+
+  # Optional: MLflow for model tracking
+  mlflow:
+    image: python:3.14-slim
+    container_name: amex-mlflow
+    ports:
+      - "5000:5000"
+    volumes:
+      - mlflow_data:/mlflow
+    command: >
+      sh -c "pip install mlflow &&
+             mlflow server 
+             --backend-store-uri sqlite:///mlflow/mlflow.db
+             --default-artifact-root /mlflow/artifacts
+             --host 0.0.0.0"
+    networks:
+      - jenkins-network
+
+volumes:
+  jenkins_home:
+  mlflow_data:
+
+networks:
+  jenkins-network:
+    driver: bridge
